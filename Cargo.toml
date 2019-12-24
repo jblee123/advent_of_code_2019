@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "aoc2019_utils",
+    "aoc2019_day1",
+]
