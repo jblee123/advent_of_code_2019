@@ -1,5 +1,3 @@
-// pub mod aoc2019_day1_utils;
-
 use std::str::FromStr;
 
 #[cfg(test)]
