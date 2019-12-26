@@ -1,6 +1,6 @@
 use std::fs;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Point2d<T> {
     pub x: T,
     pub y: T,
