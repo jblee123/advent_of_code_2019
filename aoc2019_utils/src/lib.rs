@@ -1,10 +1,6 @@
-use std::fs;
+pub mod point_2d;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct Point2d<T> {
-    pub x: T,
-    pub y: T,
-}
+use std::fs;
 
 pub fn get_input(filename: &str) -> String {
     let err_msg = format!("Something went wrong reading the input file: {}",

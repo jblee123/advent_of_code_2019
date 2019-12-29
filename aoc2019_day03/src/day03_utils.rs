@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use aoc2019_utils::*;
 
-pub type GridPoint = Point2d<i32>;
+pub type GridPoint = point_2d::Point2d<i32>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum Dir { Up, Down, Left, Right }
@@ -93,7 +93,7 @@ fn apply_moves_to_grid(
         }
 
         wire_dist += 1;
-    } 
+    }
 }
 
 pub fn build_grid(
