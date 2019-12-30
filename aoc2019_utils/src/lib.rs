@@ -1,4 +1,5 @@
 pub mod point_2d;
+pub mod vec3d;
 
 use std::fs;
 
