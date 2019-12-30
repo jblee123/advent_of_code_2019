@@ -1,0 +1,19 @@
+[package]
+name = "aoc2019_day10"
+version = "0.1.0"
+authors = ["Brian Lee <jblee123@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "aoc2019_day10a"
+path = "src/day10a.rs"
+
+[[bin]]
+name = "aoc2019_day10b"
+path = "src/day10b.rs"
+
+[dependencies]
+
+aoc2019_utils = { path = "../aoc2019_utils" }
