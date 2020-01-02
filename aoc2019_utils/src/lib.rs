@@ -43,6 +43,19 @@ pub fn angle_to_0_2pi(ang_rad: f32) -> f32 {
     ang_rad
 }
 
+pub fn sec_to_hrs_mins_secs(secs: u64) -> (u64, u64, u64) {
+    let mins = secs / 60;
+    let secs = secs % 60;
+    let hrs = mins / 60;
+    let mins = mins % 60;
+    (hrs, mins, secs)
+}
+
+pub fn sec_to_hrs_mins_secs_str(secs: u64) -> String {
+    let (hrs, mins, secs) = sec_to_hrs_mins_secs(secs);
+    format!("{}h:{:02}m:{:02}s", hrs, mins, secs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
