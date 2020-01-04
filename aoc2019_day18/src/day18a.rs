@@ -8,8 +8,14 @@ use day18_utils::*;
 fn main() {
     let input = aoc2019_utils::get_input("inputs/day18.txt");
     let (vault, pos, keys) = parse_input(&input);
+
+    {
+        let vault = process_vault(&vault, pos);
+        print_vault(&vault);
+    }
+
     let start_time = Instant::now();
-    let result = search_for_keys(pos, &vault, keys);
+    let result = search_for_keys(&vec![pos], &vault, keys);
     println!(
         "search time: {}",
         sec_to_hrs_mins_secs_str(start_time.elapsed().as_secs()),
