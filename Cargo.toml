@@ -19,4 +19,5 @@ members = [
     "aoc2019_day15",
     "aoc2019_day16",
     "aoc2019_day17",
+    "aoc2019_day18",
 ]

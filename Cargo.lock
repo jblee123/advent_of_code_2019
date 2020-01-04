@@ -120,6 +120,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "aoc2019_day18"
+version = "0.1.0"
+dependencies = [
+ "aoc2019_utils 0.1.0",
+]
+
+[[package]]
 name = "aoc2019_utils"
 version = "0.1.0"
 
