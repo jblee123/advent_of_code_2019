@@ -10,9 +10,9 @@ edition = "2018"
 name = "aoc2019_day22a"
 path = "src/day22a.rs"
 
-#[[bin]]
-#name = "aoc2019_day22b"
-#path = "src/day22b.rs"
+[[bin]]
+name = "aoc2019_day22b"
+path = "src/day22b.rs"
 
 [dependencies]
 
