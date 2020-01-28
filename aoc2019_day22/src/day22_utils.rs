@@ -2,6 +2,38 @@ use std::str::FromStr;
 
 use aoc2019_utils::*;
 
+fn modulo(a: i64, b: i64) -> i64 {
+    ((a % b) + b) % b
+}
+
+// Implementation from: https://en.wikipedia.org/wiki/Modular_arithmetic
+// fn mul_mod(a: u64, b: u64, m: u64) -> u64 {
+//     let mut d = 0;
+//     let mp2 = m >> 1;
+//     let mut a = a % m;
+//     let b = b % m;
+//     for _ in 0..64 {
+//         d = if d > mp2 { (d << 1) - m } else { d << 1 };
+//         if (a & 0x8000000000000000u64) != 0 {
+//             d += b;
+//         }
+//         if d >= m {
+//             d -= m;
+//         }
+//         a <<= 1;
+//     }
+//     d
+// }
+
+// Implementation from: https://en.wikipedia.org/wiki/Modular_arithmetic
+fn mul_mod2(a: u64, b: u64, m: u64) -> u64 {
+    let a = a % m;
+    let b = b % m;
+    let c = (a as f64 * b as f64 / m as f64) as u64;
+    let r = ((a * b - c * m) as i64) % (m as i64);
+    (if r < 0 { r + (m as i64) } else { r }) as u64
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ShuffleType {
     IntoNewStack,
@@ -9,6 +41,7 @@ pub enum ShuffleType {
     WithIncrement(u32),
 }
 
+/// This deck is for part A. It's a straight-up simulation. Quick and simple.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Deck {
     pub cards: Vec<u32>,
@@ -83,143 +116,63 @@ impl Deck {
     }
 }
 
-pub struct BigDeck { num_cards: u64 }
-
-impl BigDeck {
-    pub fn new(num_cards: u64) -> Self {
-        Self { num_cards: num_cards }
-    }
-
-    fn shuffle_into_new_stack_pos(&self, card_num: u64) -> u64 {
-        self.num_cards - card_num - 1
-    }
-
-    fn shuffle_cut_pos(&self, card_num: u64, n: i32) -> u64 {
-        let n = if n >= 0 {
-            n as u64
-        } else {
-            self.num_cards - (n.abs() as u64)
-        };
-
-        if card_num >= n {
-            card_num - n
-        } else {
-            self.num_cards - n + card_num
-        }
-    }
-
-    fn shuffle_with_incr_pos(&self, card_num: u64, n: u32) -> u64 {
-        (card_num * n as u64) % self.num_cards
-    }
-
-    fn unshuffle_into_new_stack_pos(&self, card_num: u64) -> u64 {
-        self.shuffle_into_new_stack_pos(card_num)
-    }
-
-    fn unshuffle_cut_pos(&self, card_num: u64, n: i32) -> u64 {
-        self.shuffle_cut_pos(card_num, -n)
-    }
-
-    fn get_num_wraps_from_shuffle_with_incr(&self, card_num: u64, n: u64)
-    -> (u64, u64) {
-        let shorter_deck_len = n + (self.num_cards % n);
-        let num_chunks = self.num_cards / n;
-        let partial_chunk_start = num_chunks * n;
-        let target_idx = if card_num >= partial_chunk_start {
-            n + (card_num - partial_chunk_start)
-        } else {
-            card_num % n
-        };
-
-        let mut num_wraps = 0;
-        let mut last_chunk_hits = 0;
-        let mut pos = 0;
-        while pos != target_idx {
-            pos += n;
-            if pos >= shorter_deck_len {
-                pos -= shorter_deck_len;
-                num_wraps += 1;
-            }
-            if pos >= n {
-                last_chunk_hits += 1;
-            }
-        }
-
-        (num_wraps, last_chunk_hits)
-    }
-
-    fn unshuffle_with_incr_pos(&self, card_num: u64, n: u32) -> u64 {
-        let n = n as u64;
-
-        let (num_wraps, last_chunk_hits) =
-            self.get_num_wraps_from_shuffle_with_incr(card_num, n);
-
-        let chunk_num = card_num / n;
-        let num_chunks = self.num_cards / n;
-        let partial_chunk_start = num_chunks * n;
-        let orig_card_num =
-            (num_wraps * num_chunks) + last_chunk_hits + chunk_num;
-        if card_num >= partial_chunk_start {
-            orig_card_num - 1
-        } else {
-            orig_card_num
-        }
-    }
-
-    pub fn shuffle_pos(
-        &self,
-        shuffle_type: ShuffleType,
-        card_num: u64,
-    ) -> u64 {
-        match shuffle_type {
-            ShuffleType::IntoNewStack => self.shuffle_into_new_stack_pos(card_num),
-            ShuffleType::Cut(n) => self.shuffle_cut_pos(card_num, n),
-            ShuffleType::WithIncrement(n) => self.shuffle_with_incr_pos(card_num, n),
-        }
-    }
-
-    pub fn shuffle_pos_multi(
-        &self,
-        shuffle_types: &[ShuffleType],
-        card_num: u64,
-    ) -> u64 {
-        let mut orig_card_num = card_num;
-        for shuffle_type in shuffle_types {
-            orig_card_num = self.shuffle_pos(*shuffle_type, orig_card_num);
-        }
-
-        orig_card_num
-    }
-
-    pub fn unshuffle_pos(
-        &self,
-        shuffle_type: ShuffleType,
-        card_num: u64,
-    ) -> u64 {
-        match shuffle_type {
-            ShuffleType::IntoNewStack => self.unshuffle_into_new_stack_pos(card_num),
-            ShuffleType::Cut(n) => self.unshuffle_cut_pos(card_num, n),
-            ShuffleType::WithIncrement(n) => self.unshuffle_with_incr_pos(card_num, n),
-        }
-    }
-
-    pub fn unshuffle_pos_multi(
-        &self,
-        shuffle_types: &[ShuffleType],
-        card_num: u64,
-    ) -> u64 {
-        let mut orig_card_num = card_num;
-        for shuffle_type in shuffle_types.iter().rev() {
-            orig_card_num = self.unshuffle_pos(*shuffle_type, orig_card_num);
-        }
-
-        orig_card_num
-    }
-}
-
+/// A "compiled" shuffle. This class represents an equation of the form
+/// c' = (cA + B)%N. The different shuffles can all be represented by
+/// equations of this form, where c is the starting position of a card, N is the
+/// number of cards in the stack, c' is the ending position after the shuffle is
+/// compiled, and A and B are shuffle-dependent parameters. Since we're dealing
+/// with such large numbers, the "cA" portion must always be a modulo
+/// multiplication that will not overflow (see mul_mod and mul_mod2 above), so
+/// the general equation can be written more safely as f(c) = ((cA)%N + B)%N.
+///
+/// Shuffles of this form can be composed, so if an existing shuffle S1(c) has
+/// form S1(c) = ((cA1)%N + B1)%N, and a new shuffle S2 has form
+/// S2(c) = ((cA2)%N + B2)%N, then shuffling S1 and then S2 can be written as
+/// the composition of those two functions:
+/// S2(S1(c)) = (([((cA1)%N + B1)%N]A2)%N + B2)%N, which can be simplified down
+/// to the original form:
+/// S2(S1(c)) = ((cA3)%N + B3)%N
+/// Since composing two shuffles of the same form results in a third shuffle of
+/// the same form as the first two, that means we can compose together as many
+/// as we like, be it a list of separate shuffles or repeating the same shuffle
+/// over and over again.
+///
+/// A no-op shuffle has the form c*1 + 0.
+///
+/// A reverse shuffle will be c' = (N-1) - c. Composing that into an existing
+/// shuffle will be:
+/// c' = (N - 1) - [((c*A)%N + B%N) % N], which simplifies to:
+/// c' = [(c*A*(N-1)) + (N - 1 - B))] % N
+///
+/// An increment(n) shuffle has the form c' = (c*n)%N. Composing that into an
+/// existing shuffle will be:
+/// c' = ([((c*A)%N + B%N) % N]*n)%N, which simplifies to:
+/// c' = ((c*A*n)%N + (B*n)%N) % N
+///
+/// A cut(n) shuffle has the form c' = (c + (N-n))%N. Composing that into an
+/// existing shuffle will be:
+/// c' = ([((c*A)%N + B%N) % N] + (N-n))%N, which simplifies to:
+/// c' = ((c*A)%N + (N - n + B)%N) % N
+///
+/// A cut(-n) shuffle is equivalent to cut(N-n), and its composition with an
+/// existing shuffle ends up simplifying to:
+/// c' = ((c*A)%N + (n + B)%N) % N
+///
+/// Composing two generic shuffles
+/// S1 = (c*A1 + B1)%N, and
+/// S2 = (c*A2 + B2)%N results in
+/// S2(S1) = [((c*A1*A2)%N + (B1*A2 + B2)%N)]%N
+///
+/// It occurs to me now I could have just used the simpler, stand-alone forms
+/// of the shuffle types and then composed them using the generic formula
+/// instead of using separate simplification code each specific shuffle, but
+/// what's done is done.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct CompiledShuffle { pub a: u64, pub b: u64 }
 
+/// This deck is for part B. It does not simulate the entire deck, but works by
+/// compiling different shuffles together so multiple shuffles can be applied
+/// at once to a card.
 pub struct BigDeck2 { num_cards: u64 }
 
 impl BigDeck2 {
@@ -227,36 +180,12 @@ impl BigDeck2 {
         Self { num_cards: num_cards }
     }
 
-    fn modulo(a: i64, b: i64) -> i64 {
-        ((a % b) + b) % b
+    fn modulo(&self, a: i64) -> i64 {
+        modulo(a, self.num_cards as i64)
     }
 
-    // Implementation from: https://en.wikipedia.org/wiki/Modular_arithmetic
-    // fn mul_mod(a: u64, b: u64, m: u64) -> u64 {
-    //     let mut d = 0;
-    //     let mp2 = m >> 1;
-    //     let mut a = a % m;
-    //     let b = b % m;
-    //     for _ in 0..64 {
-    //         d = if d > mp2 { (d << 1) - m } else { d << 1 };
-    //         if (a & 0x8000000000000000u64) != 0 {
-    //             d += b;
-    //         }
-    //         if d >= m {
-    //             d -= m;
-    //         }
-    //         a <<= 1;
-    //     }
-    //     d
-    // }
-
-    // Implementation from: https://en.wikipedia.org/wiki/Modular_arithmetic
-    fn mul_mod2(a: u64, b: u64, m: u64) -> u64 {
-        let a = a % m;
-        let b = b % m;
-        let c = (a as f64 * b as f64 / m as f64) as u64;
-        let r = ((a * b - c * m) as i64) % (m as i64);
-        (if r < 0 { r + (m as i64) } else { r }) as u64
+    fn mul_mod(&self, a: u64, b: u64) -> u64 {
+        mul_mod2(a, b, self.num_cards)
     }
 
     fn compile_into_new_stack_shuffle(
@@ -264,7 +193,7 @@ impl BigDeck2 {
         shuffle: CompiledShuffle
     ) -> CompiledShuffle {
         let mut shuffle = shuffle;
-        shuffle.a = Self::mul_mod2(shuffle.a, self.num_cards - 1, self.num_cards);
+        shuffle.a = self.mul_mod(shuffle.a, self.num_cards - 1);
         shuffle.b = self.num_cards - 1 - shuffle.b;
         shuffle
     }
@@ -290,13 +219,12 @@ impl BigDeck2 {
         shuffle: CompiledShuffle,
     ) -> CompiledShuffle {
         let mut shuffle = shuffle;
-        shuffle.a = Self::mul_mod2(shuffle.a, n as u64, self.num_cards);
-        shuffle.b = Self::mul_mod2(shuffle.b, n as u64, self.num_cards);
+        shuffle.a = self.mul_mod(shuffle.a, n as u64);
+        shuffle.b = self.mul_mod(shuffle.b, n as u64);
         shuffle
     }
 
     pub fn compile(&self, shuffles: &[ShuffleType]) -> CompiledShuffle {
-
         let mut shuffle = CompiledShuffle { a: 1, b: 0 };
 
         for shuffle_type in shuffles {
@@ -317,7 +245,7 @@ impl BigDeck2 {
     }
 
     pub fn apply_shuffle(&self, shuffle: &CompiledShuffle, pos: u64) -> u64 {
-        let ca = Self::mul_mod2(pos, shuffle.a, self.num_cards);
+        let ca = self.mul_mod(pos, shuffle.a);
         (ca + shuffle.b) % self.num_cards
     }
 
@@ -326,8 +254,8 @@ impl BigDeck2 {
         shuffle1: CompiledShuffle,
         shuffle2: CompiledShuffle,
     ) -> CompiledShuffle {
-        let new_a = Self::mul_mod2(shuffle1.a, shuffle2.a, self.num_cards);
-        let new_b = Self::mul_mod2(shuffle1.b, shuffle2.a, self.num_cards);
+        let new_a = self.mul_mod(shuffle1.a, shuffle2.a);
+        let new_b = self.mul_mod(shuffle1.b, shuffle2.a);
         let new_b = (new_b + shuffle2.b) % self.num_cards;
         CompiledShuffle { a: new_a, b: new_b }
     }
@@ -337,6 +265,10 @@ impl BigDeck2 {
         shuffle: CompiledShuffle,
         num_stacked: u64,
     ) -> CompiledShuffle {
+        // Throw in this guy so that if either num_chunks or num_remaining in
+        // stack_shuffle() is zero, that zero can safely be passed to this
+        // function, which will result in the identity shuffle, which will not
+        // have an effect on the overall shuffle stack in stack_shuffle().
         if num_stacked == 0 {
             return CompiledShuffle { a: 1, b: 0 };
         }
@@ -348,13 +280,25 @@ impl BigDeck2 {
         new_shuf
     }
 
+    // This guy is used to stack a given shuffle num_stacked times. It's meant
+    // for num_stacked to be *large* -- generally too large to just iterative
+    // combine them all one by one because it would take too long, so this
+    // also accepts a chunk_size parameter that is multiple orders of magnitude
+    // large, but small enough to finish in a reasonable amount of time. The
+    // entire stack can then be created by stacking a single chunk in a
+    // reasonable amount of time and then stacking that together
+    // (num_stacked DIV chunk_size) times and then adding another smaller chunk
+    // of size (num_stacked MOD chunk_size) (which should also be calculable in
+    // a reasonable amount of time since it will be smaller than chunk_size).
+    // The theory is that if combining a shuffle 1e14 times takes too long,
+    // then 1e8 iterations + 1e6 iterations can do the work of 1e14 iterations
+    // in 1/(1e8)th the time.
     pub fn stack_shuffle(
         &self,
         shuffle: &CompiledShuffle,
         num_stacked: u64,
         chunk_size: u64,
     ) -> CompiledShuffle {
-
         let num_chunks = num_stacked / chunk_size;
         let num_remaining = num_stacked % chunk_size;
 
@@ -373,13 +317,9 @@ impl BigDeck2 {
 
         let (s, _, _) = gcd_extended(shuffle.a as i64, self.num_cards as i64);
 
-        let mut ans = Self::mul_mod2(
-            pos.abs() as u64,
-            s.abs() as u64,
-            self.num_cards
-        );
+        let mut ans = self.mul_mod(pos.abs() as u64, s.abs() as u64);
         if pos.is_negative() != s.is_negative() {
-            ans = Self::modulo(-(ans as i64), self.num_cards as i64) as u64;
+            ans = self.modulo(-(ans as i64)) as u64;
         }
         ans
     }
@@ -530,172 +470,23 @@ mod tests {
     }
 
     #[test]
-    fn test_big_deck_unshuffle_into_new_stack_pos() {
-        let deck = BigDeck::new(100);
-
-        let result = deck.unshuffle_pos(ShuffleType::IntoNewStack, 0);
-        assert_eq!(result, 99);
-
-        let result = deck.unshuffle_pos(ShuffleType::IntoNewStack, 99);
-        assert_eq!(result, 0);
-
-        let result = deck.unshuffle_pos(ShuffleType::IntoNewStack, 49);
-        assert_eq!(result, 50);
+    fn test_modulo() {
+        assert_eq!(modulo(8, 100), 8);
+        assert_eq!(modulo(8, 108), 8);
+        assert_eq!(modulo(-8, 100), 92);
     }
 
     #[test]
-    fn test_big_deck_unshuffle_cut_pos() {
-        let deck = BigDeck::new(100);
+    fn test_mul_mod() {
+        // assert_eq!(mul_mod(4, 25, 75), 25);
+        // assert_eq!(mul_mod(8, 100, 75), 50);
+        // assert_eq!(mul_mod(8, 100, 800), 0);
+        // assert_eq!(mul_mod(8, 100, 1000), 800);
 
-        let result = deck.unshuffle_pos(ShuffleType::Cut(10), 90);
-        assert_eq!(result, 0);
-
-        let result = deck.unshuffle_pos(ShuffleType::Cut(10), 1);
-        assert_eq!(result, 11);
-
-        let result = deck.unshuffle_pos(ShuffleType::Cut(-10), 0);
-        assert_eq!(result, 90);
-
-        let result = deck.unshuffle_pos(ShuffleType::Cut(-10), 99);
-        assert_eq!(result, 89);
-    }
-
-    #[test]
-    fn test_big_deck_unshuffle_with_incr_pos() {
-        const SHUFFLE_WITH_INC_3: ShuffleType = ShuffleType::WithIncrement(3);
-        const SHUFFLE_WITH_INC_5: ShuffleType = ShuffleType::WithIncrement(5);
-
-        let deck = BigDeck::new(10);
-
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(0, 3);
-        assert_eq!((r1, r2), (0, 0));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(1, 3);
-        assert_eq!((r1, r2), (2, 1));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(2, 3);
-        assert_eq!((r1, r2), (1, 1));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(3, 3);
-        assert_eq!((r1, r2), (0, 0));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(4, 3);
-        assert_eq!((r1, r2), (2, 1));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(5, 3);
-        assert_eq!((r1, r2), (1, 1));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(6, 3);
-        assert_eq!((r1, r2), (0, 0));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(7, 3);
-        assert_eq!((r1, r2), (2, 1));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(8, 3);
-        assert_eq!((r1, r2), (1, 1));
-        let (r1, r2) = deck.get_num_wraps_from_shuffle_with_incr(9, 3);
-        assert_eq!((r1, r2), (0, 1));
-
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 0);
-        assert_eq!(result, 0);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 1);
-        assert_eq!(result, 7);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 2);
-        assert_eq!(result, 4);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 3);
-        assert_eq!(result, 1);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 4);
-        assert_eq!(result, 8);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 5);
-        assert_eq!(result, 5);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 6);
-        assert_eq!(result, 2);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 7);
-        assert_eq!(result, 9);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 8);
-        assert_eq!(result, 6);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_3, 9);
-        assert_eq!(result, 3);
-
-        let deck = BigDeck::new(13);
-
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 0);
-        assert_eq!(result, 0);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 1);
-        assert_eq!(result, 8);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 2);
-        assert_eq!(result, 3);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 3);
-        assert_eq!(result, 11);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 4);
-        assert_eq!(result, 6);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 5);
-        assert_eq!(result, 1);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 6);
-        assert_eq!(result, 9);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 7);
-        assert_eq!(result, 4);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 8);
-        assert_eq!(result, 12);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 9);
-        assert_eq!(result, 7);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 10);
-        assert_eq!(result, 2);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 11);
-        assert_eq!(result, 10);
-        let result = deck.unshuffle_pos(SHUFFLE_WITH_INC_5, 12);
-        assert_eq!(result, 5);
-    }
-
-    #[test]
-    fn test_big_deck_unshuffle_pos_multi() {
-        let shuffles = vec![
-            ShuffleType::IntoNewStack,
-            ShuffleType::Cut(-2),
-            ShuffleType::WithIncrement(7),
-            ShuffleType::Cut(8),
-            ShuffleType::Cut(-4),
-            ShuffleType::WithIncrement(7),
-            ShuffleType::Cut(3),
-            ShuffleType::WithIncrement(9),
-            ShuffleType::WithIncrement(3),
-            ShuffleType::Cut(-1),
-        ];
-
-        let deck = BigDeck::new(10);
-
-        let result = deck.unshuffle_pos_multi(&shuffles, 0);
-        assert_eq!(result, 9);
-        let result = deck.unshuffle_pos_multi(&shuffles, 1);
-        assert_eq!(result, 2);
-        let result = deck.unshuffle_pos_multi(&shuffles, 2);
-        assert_eq!(result, 5);
-        let result = deck.unshuffle_pos_multi(&shuffles, 3);
-        assert_eq!(result, 8);
-        let result = deck.unshuffle_pos_multi(&shuffles, 4);
-        assert_eq!(result, 1);
-        let result = deck.unshuffle_pos_multi(&shuffles, 5);
-        assert_eq!(result, 4);
-        let result = deck.unshuffle_pos_multi(&shuffles, 6);
-        assert_eq!(result, 7);
-        let result = deck.unshuffle_pos_multi(&shuffles, 7);
-        assert_eq!(result, 0);
-        let result = deck.unshuffle_pos_multi(&shuffles, 8);
-        assert_eq!(result, 3);
-        let result = deck.unshuffle_pos_multi(&shuffles, 9);
-        assert_eq!(result, 6);
-    }
-
-    #[test]
-    fn test_big_deck2_modulo() {
-        assert_eq!(BigDeck2::modulo(8, 100), 8);
-        assert_eq!(BigDeck2::modulo(8, 108), 8);
-        assert_eq!(BigDeck2::modulo(-8, 100), 92);
-    }
-
-    #[test]
-    fn test_big_deck2_mul_mod() {
-        // assert_eq!(BigDeck2::mul_mod(4, 25, 75), 25);
-        // assert_eq!(BigDeck2::mul_mod(8, 100, 75), 50);
-        // assert_eq!(BigDeck2::mul_mod(8, 100, 800), 0);
-        // assert_eq!(BigDeck2::mul_mod(8, 100, 1000), 800);
-
-        assert_eq!(BigDeck2::mul_mod2(4, 25, 75), 25);
-        assert_eq!(BigDeck2::mul_mod2(8, 100, 75), 50);
-        assert_eq!(BigDeck2::mul_mod2(8, 100, 800), 0);
-        assert_eq!(BigDeck2::mul_mod2(8, 100, 1000), 800);
+        assert_eq!(mul_mod2(4, 25, 75), 25);
+        assert_eq!(mul_mod2(8, 100, 75), 50);
+        assert_eq!(mul_mod2(8, 100, 800), 0);
+        assert_eq!(mul_mod2(8, 100, 1000), 800);
     }
 
     #[test]
